@@ -1,12 +1,10 @@
 /**
-   #CluShare
-   
-   #LIQ+#RFI+#SHIB+#DOGE = #BEE
-   #CluShare features:
-   Total Supply 1,000,000,000,000,000
-   10% fee on transactions
-   5% goes to holders
-   5% is auto-locked to liquidity
+   #CluCoin features:
+    Total Supply 1,000,000,000,000,000
+    10% fee on transactions
+    5% goes to holders
+    5% is auto-locked to liquidity
+    www.clucoin.com
  */
 
 pragma solidity ^0.6.12;
@@ -80,22 +78,6 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
- 
 library SafeMath {
     /**
      * @dev Returns the addition of two unsigned integers, reverting on
@@ -250,10 +232,6 @@ abstract contract Context {
     }
 }
 
-
-/**
- * @dev Collection of functions related to the address type
- */
 library Address {
     /**
      * @dev Returns true if `account` is a contract.
@@ -389,18 +367,6 @@ library Address {
     }
 }
 
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
 contract Ownable is Context {
     address private _owner;
     address private _previousOwner;
@@ -475,8 +441,6 @@ contract Ownable is Context {
     }
 }
 
-// pragma solidity >=0.5.0;
-
 interface IUniswapV2Factory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
@@ -492,9 +456,6 @@ interface IUniswapV2Factory {
     function setFeeTo(address) external;
     function setFeeToSetter(address) external;
 }
-
-
-// pragma solidity >=0.5.0;
 
 interface IUniswapV2Pair {
     event Approval(address indexed owner, address indexed spender, uint value);
@@ -546,8 +507,6 @@ interface IUniswapV2Pair {
 
     function initialize(address, address) external;
 }
-
-// pragma solidity >=0.6.2;
 
 interface IUniswapV2Router01 {
     function factory() external pure returns (address);
@@ -643,10 +602,6 @@ interface IUniswapV2Router01 {
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
 }
 
-
-
-// pragma solidity >=0.6.2;
-
 interface IUniswapV2Router02 is IUniswapV2Router01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
@@ -688,8 +643,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
-
-contract CodeWithJD is Context, IERC20, Ownable {
+contract CluCoin is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -703,11 +657,11 @@ contract CodeWithJD is Context, IERC20, Ownable {
     address[] private _excluded;
    
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000 * 10**6 * 10**9;
+    uint256 private _tTotal = 1 * 10**15 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private _name = "CluShare";
+    string private _name = "CluCoin";
     string private _symbol = "CLU";
     uint8 private _decimals = 9;
     
@@ -723,8 +677,19 @@ contract CodeWithJD is Context, IERC20, Ownable {
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
     
-    uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
-    uint256 private numTokensSellToAddToLiquidity = 500000 * 10**6 * 10**9;
+    uint256 public _maxTxAmount = 2 * 10**12 * 10**9;
+    uint256 private numTokensSellToAddToLiquidity = 2 * 10**11 * 10**9;
+    
+    // listing restrictions
+    uint256 private _tradingTime;
+    uint256 private _restrictionLiftTime;
+    uint256 private _maxRestrictionAmount = 3 * 10**11 * 10**9;  // maximum trade amount allowed in the first 10 minutes
+    mapping (address => bool) private _isWhitelisted;
+    mapping (address => uint256) private _lastTx;
+    // end restrictions
+    
+    // pausable contract
+    bool private _paused = false;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -740,10 +705,10 @@ contract CodeWithJD is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
     
-    constructor () public {
+    constructor () public payable{
         _rOwned[_msgSender()] = _rTotal;
         
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
          // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
@@ -816,6 +781,53 @@ contract CodeWithJD is Context, IERC20, Ownable {
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
+    
+// This controls the contract pause
+    function pause() external onlyOwner() {
+        _paused = true;
+    }
+    
+    function unpause() external onlyOwner() {
+        _paused = false;
+    }
+    
+// This make it secure from bots
+
+    function setTradingStart(uint256 time) external onlyOwner() {
+        _tradingTime = time;
+        _restrictionLiftTime = time.add(10*60);  // active in the first 10 minutes of trading
+    }
+
+    function setRestrictionAmount(uint256 amount) external onlyOwner() {
+        _maxRestrictionAmount = amount;
+    }
+
+    function whitelistAccount(address account) external onlyOwner() {
+        _isWhitelisted[account] = true;
+    }
+
+
+    modifier launchRestrict(address sender, address recipient, uint256 amount) {
+        if (_tradingTime > now) {
+            require(sender == owner() || recipient == owner(), "CLU: transfers are disabled");
+        } else if (_tradingTime <= now && _restrictionLiftTime > now) {
+            require(amount <= _maxRestrictionAmount, "CLU: amount greater than max limit in restricted mode");
+            if (!_isWhitelisted[sender] && !_isWhitelisted[recipient]) {
+                require(_lastTx[sender].add(60) <= now && _lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[sender] = now;
+                _lastTx[recipient] = now;
+            } else if (!_isWhitelisted[recipient]){
+                require(_lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[recipient] = now;
+            } else if (!_isWhitelisted[sender]) {
+                require(_lastTx[sender].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[sender] = now;
+            }
+        }
+        _;
+    }
+
+// Bot End here
 
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
@@ -844,7 +856,6 @@ contract CodeWithJD is Context, IERC20, Ownable {
     }
 
     function excludeFromReward(address account) public onlyOwner() {
-        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
@@ -853,7 +864,7 @@ contract CodeWithJD is Context, IERC20, Ownable {
         _excluded.push(account);
     }
 
-    // CluShare Fixed SSL- | Incorrect error message error
+    // CluCoin Fixed SSL- | Incorrect error message error
 
     function includeInReward(address account) external onlyOwner() {
         require(_isExcluded[account], "Account is not excluded");
@@ -878,7 +889,7 @@ contract CodeWithJD is Context, IERC20, Ownable {
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
-        function excludeFromFee(address account) public onlyOwner {
+    function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
     
@@ -905,7 +916,6 @@ contract CodeWithJD is Context, IERC20, Ownable {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
     
-     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
 
     function _reflectFee(uint256 rFee, uint256 tFee) private {
@@ -1002,11 +1012,12 @@ contract CodeWithJD is Context, IERC20, Ownable {
         address from,
         address to,
         uint256 amount
-    ) private {
+    ) private launchRestrict(from, to, amount){
+        require(!_paused || from == owner() || to == owner(), "CLU: Transfers are paused"); // pause check
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
-        if(from != owner() && to != owner())
+       if(from != owner() && to != owner())
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
 
         // is the token balance of this contract address over the min number of
@@ -1101,7 +1112,7 @@ contract CodeWithJD is Context, IERC20, Ownable {
     }
 
 
-    // CluShare Fixed the condition
+    // CluCoin Fixed the condition
     //this method is responsible for taking all fee, if takeFee is true
     function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
         if(!takeFee)
