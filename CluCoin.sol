@@ -7,7 +7,7 @@
     www.clucoin.com
  */
 
-pragma solidity ^0.6.12;
+pragma solidity 0.6.5;
 // SPDX-License-Identifier: Unlicensed
 interface IERC20 {
 
@@ -689,7 +689,7 @@ contract CluCoin is Context, IERC20, Ownable {
     // end restrictions
     
     // pausable contract
-    bool private _paused = false;
+    bool private _paused;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -703,6 +703,26 @@ contract CluCoin is Context, IERC20, Ownable {
         inSwapAndLiquify = true;
         _;
         inSwapAndLiquify = false;
+    }
+	
+	modifier launchRestrict(address sender, address recipient, uint256 amount) {
+        if (_tradingTime > now) {
+            require(sender == owner() || recipient == owner(), "CLU: transfers are disabled");
+        } else if (_tradingTime <= now && _restrictionLiftTime > now) {
+            require(amount <= _maxRestrictionAmount, "CLU: amount greater than max limit in restricted mode");
+            if (!_isWhitelisted[sender] && !_isWhitelisted[recipient]) {
+                require(_lastTx[sender].add(60) <= now && _lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[sender] = now;
+                _lastTx[recipient] = now;
+            } else if (!_isWhitelisted[recipient]){
+                require(_lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[recipient] = now;
+            } else if (!_isWhitelisted[sender]) {
+                require(_lastTx[sender].add(60) <= now, "CLU: only one tx/min in restricted mode");
+                _lastTx[sender] = now;
+            }
+        }
+        _;
     }
     
     constructor () public payable{
@@ -782,7 +802,6 @@ contract CluCoin is Context, IERC20, Ownable {
         return _tFeeTotal;
     }
     
-// This controls the contract pause
     function pause() external onlyOwner() {
         _paused = true;
     }
@@ -790,8 +809,6 @@ contract CluCoin is Context, IERC20, Ownable {
     function unpause() external onlyOwner() {
         _paused = false;
     }
-    
-// This make it secure from bots
 
     function setTradingStart(uint256 time) external onlyOwner() {
         _tradingTime = time;
@@ -805,29 +822,6 @@ contract CluCoin is Context, IERC20, Ownable {
     function whitelistAccount(address account) external onlyOwner() {
         _isWhitelisted[account] = true;
     }
-
-
-    modifier launchRestrict(address sender, address recipient, uint256 amount) {
-        if (_tradingTime > now) {
-            require(sender == owner() || recipient == owner(), "CLU: transfers are disabled");
-        } else if (_tradingTime <= now && _restrictionLiftTime > now) {
-            require(amount <= _maxRestrictionAmount, "CLU: amount greater than max limit in restricted mode");
-            if (!_isWhitelisted[sender] && !_isWhitelisted[recipient]) {
-                require(_lastTx[sender].add(60) <= now && _lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
-                _lastTx[sender] = now;
-                _lastTx[recipient] = now;
-            } else if (!_isWhitelisted[recipient]){
-                require(_lastTx[recipient].add(60) <= now, "CLU: only one tx/min in restricted mode");
-                _lastTx[recipient] = now;
-            } else if (!_isWhitelisted[sender]) {
-                require(_lastTx[sender].add(60) <= now, "CLU: only one tx/min in restricted mode");
-                _lastTx[sender] = now;
-            }
-        }
-        _;
-    }
-
-// Bot End here
 
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
