@@ -1,1 +1,1 @@
-# CluShare
+# CluCoin
