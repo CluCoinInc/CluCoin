@@ -705,7 +705,7 @@ contract CluCoin is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
 	
-	modifier launchRestrict(address sender, address recipient, uint256 amount) {
+    modifier launchRestrict(address sender, address recipient, uint256 amount) {
         if (_tradingTime > now) {
             require(sender == owner() || recipient == owner(), "CLU: transfers are disabled");
         } else if (_tradingTime <= now && _restrictionLiftTime > now) {
